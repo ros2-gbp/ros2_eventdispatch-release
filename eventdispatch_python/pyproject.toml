@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dependencies = [
+    "argparse"
+]
+name = "eventdispatch"
+version = "0.2.25"
+authors = [{name = "Charlie Yan", email = "cyanatg@gmail.com"}]
+dynamic = ["scripts"]
+description = "Event Dispatch: discrete time synchronization"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+]
+license = {file = "LICENSE"}
+keywords = [
+    "threading",
+    "eventdispatch",
+    "event",
+    "dispatch",
+    "concurrency",
+    "synchronization",
+    "robotics",
+    "behaviour",
+    "behavior",
+    "behaviortree"
+]
+
+[project.urls]
+Homepage = "https://github.com/cyan-at/python-eventdispatch"
+Issues = "https://github.com/cyan-at/python-eventdispatch/issues"
