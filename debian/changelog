@@ -1,0 +1,15 @@
+ros-jazzy-eventdispatch-python (0.2.25-4bookworm) bookworm; urgency=high
+
+  * bugfix
+  * Contributors: Charlie Yan
+
+ -- Charlie Yan <cyanatg@gmail.com>  Mon, 08 Dec 2025 08:00:00 -0000
+
+ros-jazzy-eventdispatch-python (0.2.24-4bookworm) bookworm; urgency=high
+
+  * initial commit
+  * Contributors: Charlie Yan
+
+ -- Charlie Yan <cyanatg@gmail.com>  Sat, 06 Dec 2025 08:00:00 -0000
+
+
