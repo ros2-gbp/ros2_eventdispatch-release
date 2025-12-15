@@ -1,16 +1,25 @@
-rm -rf /tmp/bloom_ws/
-mkdir -p /tmp/bloom_ws/
-cd /tmp/bloom_ws/
+curr=$(realpath "$0")
+curr_dir=$(dirname $curr)
 
-rsync -azv --exclude 'debs/' --exclude='*.deb' /home/charlieyan1/Dev/jim/ros2_eventdispatch-release .
+echo "curr="$curr
+echo "curr_dir="$curr_dir
+sleep 5
+
+rm -rf /tmp/bloom_ws/
+mkdir -p /tmp/bloom_ws/src
+cd /tmp/bloom_ws/src/
+
+repo="ros2_eventdispatch"
+
+rsync -azv --exclude 'debs/' --exclude='*.deb' /home/charlieyan1/Dev/jim/$repo .
 
 WS_DIR=$(realpath .)
 echo "WS_DIR="$WS_DIR
 
-cd $WS_DIR/ros2_eventdispatch-release/eventdispatch_python
+cd $WS_DIR/$repo/eventdispatch_python
 ./bloom_toolchain.sh
 
-cd $WS_DIR/ros2_eventdispatch-release/eventdispatch_ros2_interfaces
+cd $WS_DIR/$repo/eventdispatch_ros2_interfaces
 ./bloom_toolchain.sh
 
 # multipass jazzy
@@ -38,11 +47,13 @@ cd $WS_DIR/ros2_eventdispatch-release/eventdispatch_ros2_interfaces
 
 # --- make all 3 deb files --- using bloom
 
-cd $WS_DIR/ros2_eventdispatch-release/eventdispatch_ros2
+cd $WS_DIR/$repo/eventdispatch_ros2
 ./bloom_toolchain.sh
 
-cd $WS_DIR/ros2_eventdispatch-release
+cd $WS_DIR/$repo
 
 echo "####################### debs live"
 echo $(realpath .)
 ls -l *.deb
+
+cp *.deb $curr_dir/
