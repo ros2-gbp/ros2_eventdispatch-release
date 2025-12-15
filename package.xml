@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>eventdispatch_ros2_interfaces</name>
-  <version>0.2.25</version>
+  <version>0.2.26</version>
   <description>ROSEvent srv / msg</description>
   <maintainer email="cyanatg@gmail.com">Charlie Yan</maintainer>
   <license>Apache-2.0</license>
