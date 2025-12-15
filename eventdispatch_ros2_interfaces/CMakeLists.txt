@@ -11,7 +11,9 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ROSEvent.srv"
+  "srv/ROSEvents.srv"
   "msg/ROSEvent.msg"
+  "msg/ROSEvents.msg"
   DEPENDENCIES builtin_interfaces
 )
 
