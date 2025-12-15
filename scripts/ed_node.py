@@ -17,6 +17,9 @@ from rcl_interfaces.msg import ParameterDescriptor
 from eventdispatch_ros2_interfaces.srv import ROSEvent as EventSrv
 from eventdispatch_ros2_interfaces.msg import ROSEvent as EventMsg
 
+from eventdispatch_ros2_interfaces.srv import ROSEvents as EventSrvs
+from eventdispatch_ros2_interfaces.msg import ROSEvents as EventMsgs
+
 # ros2 topic pub --once /example1/dispatch eventdispatch_ros2_interfaces/msg/ROSEvent "{string_array: ['WorkItemEvent'], int_array: [3]}"
 
 def noop(instance, *args):
@@ -58,6 +61,12 @@ class ROS2QueueCVED(CSBQCVED, Node):
             callback_group=self.callback_group # necessary
         )
 
+        self.create_service(EventSrvs,
+            '~/dispatch_list',
+            self.srv_dispatch_cb_list,
+            callback_group=self.callback_group # necessary
+        )
+
         # https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html
         qos = QoSProfile(
             history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
@@ -70,6 +79,12 @@ class ROS2QueueCVED(CSBQCVED, Node):
             self.msg_dispatch_cb,
             qos,
         )
+        self.create_subscription(
+            EventMsgs,
+            '~/dispatch_list',
+            self.msg_dispatch_cb_list,
+            qos,
+        )
 
         self.rosevent_validator = DefaultValidator()
 
@@ -80,28 +95,91 @@ class ROS2QueueCVED(CSBQCVED, Node):
         for now, this is one event at a time
         TODO(implementer) dispatch more than one at a time
         '''
+        if len(rosevent.string_array) == 0:
+            self.get_logger().warn(f"dispatch_helper_list missing event name")
+
         if not self.rosevent_validator.check(rosevent):
             self.get_logger().warn("dispatch_helper_validate failed rosevent!")
             return
 
-        payload = rosevent.string_array
-        payload.extend(rosevent.int_array)
-        payload.extend(rosevent.float_array)
+        # payload will ALWAYS have 5 arguments only
+        # this means Events expected via this route
+        # have a certain structure different than native events
+        payload = [rosevent.string_array[0]]
+        payload.append(rosevent.string_array[1:])
+        payload.append(rosevent.int_array)
+        payload.append(rosevent.float_array)
 
-        self.get_logger().warn('payload {}'.format(
-            payload))
+        # convention: hash is passed here as last arg
+        # convention: only the individual event hash is seen
+        # the top level has is ignored
+        payload.append(rosevent.hash)
 
-        if len(payload) > 0:
-            self.get_logger().warn('going!!! {}'.format(
-                len(payload)))
+        self.get_logger().warn('payload {}'.format(payload))
 
-            # queue-and-notify pattern for maximum client responsiveness
-            self.blackboard[self.cv_name].acquire()
-            self.blackboard[self.queue_name].append(
-                payload
-            )
-            self.blackboard[self.cv_name].notify(1)
-            self.blackboard[self.cv_name].release()
+        # queue-and-notify pattern for maximum client responsiveness
+        self.blackboard[self.cv_name].acquire()
+        self.blackboard[self.queue_name].append(
+            payload
+        )
+        self.blackboard[self.cv_name].notify(1)
+        self.blackboard[self.cv_name].release()
+
+    def dispatch_helper_list(self, rosevents):
+        '''
+        rosevent: obj that contains string_array, float_array, int_array
+        rosevents: list[rosevent]
+        '''
+        pending = []
+        for rosevent in rosevents.events:
+            '''
+            payload = rosevent.string_array
+            payload.extend(rosevent.int_array)
+            payload.extend(rosevent.float_array)
+            if len(payload) == 0:
+                continue
+
+            # convention: hash is passed here as last arg
+            # convention: only the individual event hash is seen
+            # the top level has is ignored
+            payload.extend(rosevent.hash)
+            '''
+
+            # ed enforces event serializations are arrays
+            # we need to adapt a dict to an array here
+            # assume string_array[0] == eventname
+            if len(rosevent.string_array) == 0:
+                self.get_logger().warn(f"dispatch_helper_list missing event name")
+                continue
+
+            if not self.rosevent_validator.check(rosevent):
+                self.get_logger().warn("dispatch_helper_list validate failed rosevent!")
+                continue
+
+            # payload will ALWAYS have 5 arguments only
+            # this means Events expected via this route
+            # have a certain structure different than native events
+            payload = [rosevent.string_array[0]]
+            payload.append(rosevent.string_array[1:])
+            payload.append(rosevent.int_array)
+            payload.append(rosevent.float_array)
+
+            # convention: hash is passed here as last arg
+            # convention: only the individual event hash is seen
+            # the top level has is ignored
+            payload.append(rosevent.hash)
+
+            self.get_logger().warn('payload {}'.format(
+                payload))
+            pending.append(payload)
+
+        # queue-and-notify pattern for maximum client responsiveness
+        self.blackboard[self.cv_name].acquire()
+        self.blackboard[self.queue_name].extend(
+            pending
+        )
+        self.blackboard[self.cv_name].notify(1)
+        self.blackboard[self.cv_name].release()
 
     def msg_dispatch_cb(self, msg):
         self.get_logger().warn("msg_dispatch_cb {}".format(
@@ -109,11 +187,25 @@ class ROS2QueueCVED(CSBQCVED, Node):
 
         self.dispatch_helper(msg)
 
+    def msg_dispatch_cb_list(self, msg):
+        self.get_logger().warn("msg_dispatch_cb_list {}".format(
+            msg.events))
+
+        self.dispatch_helper_list(msg)
+
     def srv_dispatch_cb(self, req, response):
         self.get_logger().warn("srv_dispatch_cb {}".format(
-            req.string_array))
+            len(req.string_array)))
 
         self.dispatch_helper(req)
+
+        return response
+
+    def srv_dispatch_cb_list(self, req, response):
+        self.get_logger().warn("srv_dispatch_cb_list {}".format(
+            len(req.events)))
+
+        self.dispatch_helper_list(req)
 
         return response
 
