@@ -78,3 +78,19 @@ https://docs.ros.org/en/jazzy/Installation/Testing.html
 Wait, eventually it will be sync'd from experimental to the official release:
 
 https://discourse.openrobotics.org/t/new-packages-for-jazzy-jalisco-2026-01-28/52166
+
+
+---
+
+# 2026-04, update to 0.2.28
+
+(base) ubuntu@ubuntu24dev:/home/charlieyan1/Dev/jim/ed/ros2_eventdispatch$ catkin_prepare_release
+...
+   abe0853..b9d229e  main -> main
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0
+To github.com:cyan-at/ros2_eventdispatch.git
+ * [new tag]         0.2.28 -> 0.2.28
+The source repository has been released successfully. The next step will be 'bloom-release'.
+
+
+bloom-release --rosdistro jazzy ros2_eventdispatch
