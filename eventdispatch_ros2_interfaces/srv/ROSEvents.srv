@@ -1,0 +1,4 @@
+ROSEvent[] events
+string hash # dedup
+---
+string result
