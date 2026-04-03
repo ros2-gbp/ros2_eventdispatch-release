@@ -145,6 +145,8 @@ class Event(object):
         self.event_dispatch = None
         # not fixed, can be changed across different dispatches
 
+        self.daemon = True # default to shutdown cleanly, children override
+
     # methods for the child to override
     def get_id(self):
         # return self.__class__.__name__ + "@" + str(self.event_id)
@@ -225,7 +227,9 @@ class EventDispatch(object):
                 # to the event dispatch, giving access / control
                 # over other events
                 callback=lambda event = event, args = args, kwargs = kwargs:\
-                    self.dispatch_finish(event, *args, **kwargs))
+                    self.dispatch_finish(event, *args, **kwargs),
+                daemon=event.daemon
+                )
             self.thread_registry[event.get_id()].start()
             # NOTE: events must deal with exceptions internally
 
