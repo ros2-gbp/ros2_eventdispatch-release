@@ -32,22 +32,22 @@ class WorkItemEvent(CommonEvent):
         self.blackboard[event_dispatch.cv_name].acquire()
         self.blackboard[event_dispatch.queue_name].extend([
             [
-                "UncertaintEvent1",
+                "UncertainEvent1",
                 args[0]-1
             ],
             [
-                "UncertaintEvent2",
+                "UncertainEvent2",
                 args[0]-1
             ]
         ])
         self.blackboard[event_dispatch.cv_name].notify(1)
         self.blackboard[event_dispatch.cv_name].release()
 
-class UncertaintEvent1(CommonEvent):
+class UncertainEvent1(CommonEvent):
     debug_color = bcolors.CYAN
 
     def dispatch(self, event_dispatch, *args, **kwargs):
-        self.log("UncertaintEvent1 dispatch!", args, kwargs)
+        self.log("UncertainEvent1 dispatch!", args, kwargs)
 
         time.sleep(random.randint(1, 5))
 
@@ -55,11 +55,11 @@ class UncertaintEvent1(CommonEvent):
             self.blackboard["result1"] = random.randint(1, 5)
 
     def finish(self, event_dispatch, *args, **kwargs):
-        self.log("UncertaintEvent1 finish!", args, kwargs)
+        self.log("UncertainEvent1 finish!", args, kwargs)
 
         with self.blackboard["result_mutex"]:
             if self.blackboard["result2"] > 0:
-                self.log("UncertaintEvent2 wins")
+                self.log("UncertainEvent2 wins")
   
                 s = self.blackboard["result1"] + self.blackboard["result2"]
                 self.blackboard["result1"] = 0
@@ -76,11 +76,11 @@ class UncertaintEvent1(CommonEvent):
                 self.blackboard[event_dispatch.cv_name].notify(1)
                 self.blackboard[event_dispatch.cv_name].release()
 
-class UncertaintEvent2(CommonEvent):
+class UncertainEvent2(CommonEvent):
     debug_color = bcolors.MAGENTA
 
     def dispatch(self, event_dispatch, *args, **kwargs):
-        self.log("UncertaintEvent2 dispatch!", args, kwargs)
+        self.log("UncertainEvent2 dispatch!", args, kwargs)
 
         time.sleep(random.randint(1, 10))
 
@@ -88,11 +88,11 @@ class UncertaintEvent2(CommonEvent):
             self.blackboard["result2"] = random.randint(1, 10)
 
     def finish(self, event_dispatch, *args, **kwargs):
-        self.log("UncertaintEvent2 finish!", args, kwargs)
+        self.log("UncertainEvent2 finish!", args, kwargs)
 
         with self.blackboard["result_mutex"]:
             if self.blackboard["result1"] > 0:
-                self.log("UncertaintEvent1 wins")
+                self.log("UncertainEvent1 wins")
 
                 s = self.blackboard["result1"] + self.blackboard["result2"]
                 self.blackboard["result1"] = 0
@@ -257,8 +257,8 @@ def main():
 
     # 1. Populate the `Blackboard` with `Event` declarations (name : type pairs)
     blackboard["WorkItemEvent"] = WorkItemEvent
-    blackboard["UncertaintEvent1"] = UncertaintEvent1
-    blackboard["UncertaintEvent2"] = UncertaintEvent2
+    blackboard["UncertainEvent1"] = UncertainEvent1
+    blackboard["UncertainEvent2"] = UncertainEvent2
     blackboard["CheckEvent1"] = CheckEvent1
 
     blackboard["result_mutex"] = threading.Lock()
