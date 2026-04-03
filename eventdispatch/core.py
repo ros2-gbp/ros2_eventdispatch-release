@@ -229,7 +229,7 @@ class EventDispatch(object):
                 callback=lambda event = event, args = args, kwargs = kwargs:\
                     self.dispatch_finish(event, *args, **kwargs),
                 daemon=event.daemon
-                )
+            )
             self.thread_registry[event.get_id()].start()
             # NOTE: events must deal with exceptions internally
 
