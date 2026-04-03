@@ -66,3 +66,15 @@ repeat until functionally tested:
 1. update source
 2. colcon ws build, test, func validate
 
+bloom-release --rosdistro jazzy ros2_eventdispatch
+
+test it 
+
+https://docs.ros.org/en/jazzy/How-To-Guides/Releasing/First-Time-Release.html#next-steps
+https://docs.ros.org/en/jazzy/Installation/Testing.html
+
+---
+
+Wait, eventually it will be sync'd from experimental to the official release:
+
+https://discourse.openrobotics.org/t/new-packages-for-jazzy-jalisco-2026-01-28/52166
