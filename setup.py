@@ -4,7 +4,7 @@ package_name = 'eventdispatch_python'
 
 setup(
     name='eventdispatch',
-    version='0.2.25',
+    version='0.2.28',
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
