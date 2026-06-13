@@ -1,3 +1,29 @@
+## ros2_eventdispatch (humble) - 0.2.29-1
+
+The packages in the `ros2_eventdispatch` repository were released into the `humble` distro by running `/usr/bin/bloom-release --new-track --rosdistro humble --track humble ros2_eventdispatch` on `Sat, 13 Jun 2026 06:49:36 -0000`
+
+These packages were released:
+- `eventdispatch_python`
+- `eventdispatch_ros2`
+- `eventdispatch_ros2_interfaces`
+
+Version of package(s) in repository `ros2_eventdispatch`:
+
+- upstream repository: https://github.com/cyan-at/ros2_eventdispatch.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `0.2.29-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.3`
+- catkin_pkg version: `1.1.0`
+- rosdep version: `0.26.0`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## ros2_eventdispatch (jazzy) - 0.2.29-1
 
 The packages in the `ros2_eventdispatch` repository were released into the `jazzy` distro by running `/usr/bin/bloom-release --rosdistro jazzy ros2_eventdispatch` on `Fri, 03 Apr 2026 07:45:33 -0000`
