@@ -6,6 +6,15 @@ Created on 2025-05-23
 
 Copyright (c) 2025, Charlie Yan
 License: Apache-2.0 (see LICENSE for details)
+
+Example core: the core mechanism on a BlackboardQueueCVED.
+WorkItemEvent's finish enqueues UncertainEvent1 / UncertainEvent2,
+which write results to the Blackboard; CheckEvent1 combines them.
+An interactive keyboard actor thread feeds the queue. Events run
+on EventThreads, finishes enqueue what happens next.
+
+Run:  eventdispatch_example_core
+      (or: python -m eventdispatch.example_core)
 '''
 
 from .core import *
@@ -18,7 +27,7 @@ import signal, time, os, sys, random, threading, argparse
 
 # these are examples Event classes
 # together, they define the drift and control in a system
-# defined here, they are registered as key-value paris in the Blackboard instance below
+# defined here, they are registered as key-value pairs in the Blackboard instance below
 
 class WorkItemEvent(CommonEvent):
     debug_color = bcolors.WARNING
@@ -239,7 +248,7 @@ class KeyboardThread(threading.Thread):
                 local_hb = self.mutable_hb['hb']
 
 def main():
-    parser = argparse.ArgumentParser(description='eventdispatch example1')
+    parser = argparse.ArgumentParser(description='eventdispatch example_core')
     parser.add_argument('--verbose',
         help="verbose, default=True",
         action='store_true')
