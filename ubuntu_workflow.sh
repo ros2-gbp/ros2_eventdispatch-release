@@ -11,7 +11,7 @@ cd /tmp/bloom_ws/src/
 
 repo="ros2_eventdispatch"
 
-rsync -azv --exclude 'debs/' --exclude='*.deb' /home/charlieyan1/Dev/jim/$repo .
+rsync -azv --exclude 'debs/' --exclude='*.deb' /home/charlieyan1/Dev/jim/ed/$repo .
 
 WS_DIR=$(realpath .)
 echo "WS_DIR="$WS_DIR
