@@ -4,7 +4,7 @@ package_name = 'eventdispatch_python'
 
 setup(
     name='eventdispatch',
-    version='0.2.29',
+    version='0.2.30',
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -27,9 +27,10 @@ setup(
     packages=find_packages(exclude=['test']),
     entry_points=dict(
         console_scripts=[
-            'eventdispatch_example1=eventdispatch.example1:main',
+            'eventdispatch_example_core=eventdispatch.example_core:main',
             'eventdispatch_cs_main=eventdispatch.composite_semaphore:main',
-            'eventdispatch_example2=eventdispatch.example2:main'
+            'eventdispatch_example_cs=eventdispatch.example_cs:main',
+            'eventdispatch_example_sim_mujoco=eventdispatch.example_sim_mujoco:main'
         ]
     )
 )
