@@ -31,6 +31,7 @@ if sys.version_info.major == 2:
     makedirs_wrapper = python2_makedirs_wrapper
 
 class bcolors:
+    '''ANSI color constants, for colored logs'''
     # https://godoc.org/github.com/whitedevops/colors
     DEFAULT = "\033[39m"
     BLACK = "\033[30m"
@@ -80,6 +81,7 @@ def nonempty_queue_exists(
     blackboard,
     admissible_nonempty_keys,
     verbose = False):
+    '''True if any *_queue on the blackboard, outside the admissible set, is nonempty'''
     for k in blackboard.keys():
         if k[-6:] == "_queue":
             mutex_k = k[:-6] + "_mutex"
@@ -109,6 +111,7 @@ def wrap_with_prints(pre_msg, post_msg):
     return decorator
 
 def replace_with_func(other_func):
+    '''decorator: swap the wrapped function for other_func'''
     def decorator(func):
         def wrapper(*args, **kwargs):
             other_func(*args, **kwargs)
@@ -116,6 +119,12 @@ def replace_with_func(other_func):
     return decorator
 
 class CommonEvent(Event):
+    '''
+    an Event with the conventions BlackboardQueueCVED expects:
+    the constructor's first arg after event_id is the blackboard,
+    and deserialize() (below) is how a queue item becomes one.
+    log / internal_log print in debug_color.
+    '''
     debug_color = bcolors.LIGHTCYAN
 
     def __init__(self, event_id, *args, **kwargs):
@@ -139,6 +148,7 @@ class CommonEvent(Event):
 
     @staticmethod
     def deserialize(ed, blackboard, *args, **kwargs):
+        '''[class name, *tokens] -> ((event_id, blackboard), tokens)'''
         tokens = args[0]
         # ed.log("TOKENS! {}".format(tokens))
         if len(tokens) < 1:
@@ -150,6 +160,12 @@ TIMERWAIT_TIMEOUT = -1
 TIMERWAIT_BAILED = 1
 
 class TimerWait(CommonEvent):
+    '''
+    sleeps args[0] seconds on its own thread; on timeout, finish
+    enqueues the pending events (a timed CSRelease). An actor can
+    set the blackboard status to TIMERWAIT_BAILED to make the
+    finish a noop instead.
+    '''
     debug_color = bcolors.CYAN
 
     def get_pending(self, args):
@@ -177,7 +193,7 @@ class TimerWait(CommonEvent):
         self.log("TimerWait sleeping for {} to CSRelease {}".format(
             args[0], args[1]))
 
-        self.blackboard[self.k]['timer'] .wait(args[0])
+        self.blackboard[self.k]['timer'].wait(args[0])
 
     def finish(self, event_dispatch, *args, **kwargs):
         if self.blackboard[self.k]['status'] == TIMERWAIT_TIMEOUT:
@@ -193,11 +209,23 @@ class TimerWait(CommonEvent):
             self.blackboard[event_dispatch.cv_name].notify(1)
             self.blackboard[event_dispatch.cv_name].release()
 
-            self.blackboard.pop(self.k)
         elif self.blackboard[self.k]['status'] == TIMERWAIT_BAILED:
             self.log("TimerWait bailed! noop")
 
+        self.blackboard.pop(self.k)
+
 class BlackboardQueueCVED(EventDispatch):
+    '''
+    a buffer-and-drain dispatch: producers append serialized
+    [class name, *args] items to <name>_queue on the blackboard
+    and notify <name>_cv; run() (a thread target) drains the
+    queue completely each wake, deserializing and dispatching
+    every item.
+
+    subclass hooks: prior_cb / post_cb around each drain.
+    do_dispatch is the funnel from the queue to dispatch().
+    event ids cycle % 30000; release_event_id is a no-op here.
+    '''
     def __init__(self, blackboard, name):
         super(BlackboardQueueCVED, self).__init__(
             blackboard, name + "_dispatch")
@@ -221,6 +249,7 @@ class BlackboardQueueCVED(EventDispatch):
             len(blackboard[self.queue_name])))
 
     def register_blackboard_assets(self, blackboard, name):
+        '''create (if absent) <name>_hb / _mutex / _cv / _queue on the blackboard'''
         self.name = name
 
         self.hb_key = name + "_hb"
@@ -269,6 +298,9 @@ class BlackboardQueueCVED(EventDispatch):
         stubbed out to support CSBQCVED
 
         avoid overriding this
+
+        deserialize one queue item and dispatch it;
+        True on success, False (logged) on any failure
         '''
 
         # s (serialized_event) expected to be
@@ -300,6 +332,12 @@ class BlackboardQueueCVED(EventDispatch):
         prefix, # expected, str
         empty_cv_name = None, # expected, str
         debug_color = None):
+        '''
+        thread target: wait on the cv, drain the queue
+        (prior_cb, do_dispatch each item, post_cb), notify
+        empty_cv_name when drained. Exits when <name>_hb goes
+        False and the cv is notified.
+        '''
         assert(blackboard is not None)
 
         if (debug_color is not None):
