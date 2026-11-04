@@ -14,10 +14,15 @@ import threading, collections
 from threading import Condition, Lock, Thread
 
 def wrap_instance_method(instance, method_name, wrapper_with_args):
+    '''instance.<method_name> = wrapper_with_args(instance.<method_name>)'''
     wrapped_method = wrapper_with_args(getattr(instance, method_name))
     setattr(instance, method_name, wrapped_method)
 
 def call_when_switch_turned_on(obj, switch, switch_lock):
+    '''
+    decorator factory: the wrapped call raises while obj.<switch>
+    is off; the check and the call happen under obj.<switch_lock>
+    '''
     def decorator(func):  # func should return void
         def wrapper(*args, **kwargs):
             lock_obj = getattr(obj, switch_lock)
@@ -33,6 +38,14 @@ def call_when_switch_turned_on(obj, switch, switch_lock):
     return decorator
 
 class Blackboard(dict):
+    '''
+    a dict with per-key condition variables
+
+    register_payload(key) rents a cv set for a key; setting that
+    key afterwards appends the value to the set's queue and
+    notifies its waiters (open-the-mouth-before-you-feed-it).
+    release_cv(key) returns the set to the pool.
+    '''
     def __init__(self, *args, **kwargs):
         # self.mutex = Lock()
         self.update(dict(*args, **kwargs))  # use the free update to set keys
@@ -65,6 +78,7 @@ class Blackboard(dict):
     #         super().__delitem__(key)
 
     def release_cv(self, key):
+        '''return key's cv set to the pool'''
         print("RELEASING CV", key)
         with self.cv_pool_lock:
             if key not in self.cvs:
@@ -76,6 +90,7 @@ class Blackboard(dict):
                 self.cv_pool.append(cv_set)
 
     def register_payload(self, payload, match_target = None):
+        '''rent a cv set for payload (recycled from the pool, or new)'''
         with self.cv_pool_lock:
             if len(self.cv_pool) > 0:
                 cv_set = self.cv_pool.pop(0)
@@ -149,33 +164,44 @@ class Event(object):
 
     # methods for the child to override
     def get_id(self):
+        '''the id this dispatch instance knows this event by'''
         # return self.__class__.__name__ + "@" + str(self.event_id)
         return self.event_id
 
     @staticmethod
     def deserialize(ed, blackboard, *args, **kwargs):
-        # up to the Event class to define
-        # returns 2 tuples, constructor_args, dispatch_args
-        # unlike dispatch / finish, involves no instance
+        '''
+        MUST override: turn a serialized form into
+        (constructor_args, dispatch_args); involves no instance
+        '''
         raise NotImplementedError
 
     def dispatch(self, event_dispatch, *args, **kwargs):
-        # CAN EITHER PASS IN ARGS OR KWARGS HERE
-        # OR SET THEM IN CONSTRUCTOR
-        # OR SET THEM IN THE BLACKBOARD
-        # unlike deserialize / finish, happens in its own thread
+        '''
+        MUST override: the work itself; runs in its own thread.
+        Do risky / uncertain stuff here.
+        Args can come from dispatch, the constructor, or the blackboard.
+        '''
         raise NotImplementedError
 
     def finish(self, event_dispatch, *args, **kwargs):
-        # unlike deserialize / dispatch, involves other events
-
-        # BEST PRACTICE:
-        # you should deal with OUTCOMES here
-        # do risky / uncertain stuff inside dispatch
-        # and deal with the outcomes here
+        '''
+        MUST override: called when dispatch's thread returns.
+        Deal with the outcomes here; only the event decides
+        what is dispatched next.
+        '''
         raise NotImplementedError
 
 class EventDispatch(object):
+    '''
+    the core mechanism: dispatch(event) spawns an EventThread
+    running event.dispatch; when that thread returns, its callback
+    dispatch_finish calls event.finish and releases the event id.
+
+    dispatch is wrapped at construction with a switch guard: an
+    event can set self.dispatch_switch off to stop all further
+    dispatching until it is cleared -- the safety axis.
+    '''
     def __init__(self, blackboard = None, ed_id = None):
         self.thread_registry = {}
         self.mutex_registry = {}
@@ -206,6 +232,7 @@ class EventDispatch(object):
     # something child ED class can override
     # for Event.deserialize to form some event_id
     def reserve_event_id(self):
+        '''an id unique within this dispatch instance; recycled'''
         if len(self.event_id_pool) > 0:
             return self.event_id_pool.pop()
         else:
@@ -214,10 +241,11 @@ class EventDispatch(object):
             return new_id
 
     def release_event_id(self, event_id):
-        # return event_id to pool
+        '''return event_id to the pool'''
         self.event_id_pool.add(event_id)
 
     def dispatch(self, event, *args, **kwargs):
+        '''spawn the event's thread (guarded by the dispatch switch)'''
         with self.dispatch_mutex:
             # print("dispatching %s" % (event.get_id())) # debug
             self.thread_registry[event.get_id()] = EventThread(
@@ -234,6 +262,7 @@ class EventDispatch(object):
             # NOTE: events must deal with exceptions internally
 
     def dispatch_finish(self, event, *args, **kwargs):
+        '''thread callback: unregister, call finish, release the id'''
         with self.dispatch_mutex:
             event_id = event.get_id()
             self.thread_registry.pop(event_id, None)
