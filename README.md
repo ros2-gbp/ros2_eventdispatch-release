@@ -1,96 +1,77 @@
-# initial release notes
+# ros2_eventdispatch
 
-bloom toolchain:
+**ROS(ROS2)** are solutions to the *inter-process communication* problem, among other metaphors
 
-```
-sudo apt install python3-bloom python3-rosdep fakeroot dh-make
+[python-eventdispatch](https://python-eventdispatch.readthedocs.io/en/latest/) ([github](https://github.com/cyan-at/python-eventdispatch)) uses ROS2 as a message bus for robotics use-cases.
 
-#####################################
-
-multipass jazzy
-
-https://robotics.stackexchange.com/a/84789
-this will let
-    fakeroot  debian/rules binary
-find local rosdep dependencies
-
-    1. dpkg install ros deb files
-
-    2. sudo vim /etc/ros/rosdep/sources.list.d/20-default.list 
-
-        yaml file:///tmp/test_ws/src/ros2_eventdispatch-release/local.yaml
-
-            eventdispatch_ros2_interfaces:
-              ubuntu: [ros-jazzy-eventdispatch-ros2-interfaces]
-
-            eventdispatch_python:
-              ubuntu: [ros-jazzy-eventdispatch-python]
-
-    3. rosdep update (see the packages)
-
-    4. fakeroot / bloom build the remaining packages
-
---- make all 3 deb files --- using bloom
-```
-
-https://docs.ros.org/en/jazzy/How-To-Guides/Releasing/First-Time-Release.html
-
-* [PR 907](https://github.com/ros2-gbp/ros2-gbp-github-org/issues/907)
-* [PR 908](https://github.com/ros2-gbp/ros2-gbp-github-org/issues/908)
+It does so with 3 packages in this upstream super-repo.
+1. eventdispatch_python (provides the **eventdispatch** library)
+2. eventdispatch_ros2_interfaces (ROSEvent.msg/srv)
+3. eventdispatch_ros2 (**ed_node**, **stage.launch**)
 
 ---
 
-https://robotics.stackexchange.com/a/117904/53773
+# ed_node
 
-[upstream](https://github.com/cyan-at/ros2_eventdispatch.git)
+Instantiates a class child of **CSBQCVED**, **Node**
 
-[release](https://github.com/ros2-gbp/ros2_eventdispatch-release.git)
+```
+class ROS2QueueCVED(CSBQCVED, Node):
+```
+
+```
+CSBQCVED :
+Composite
+Semaphore
+Blackboard
+Queue
+Condition
+Variable
+Event
+Dispatch
+```
+
+1. `~/dispatch` service, subscription
+2. `~/dispatch_list` service, subscription (batch version)
+3. `events_module_path` ros2 parameter
+
+The `events_module_path` is a folder that is expected to have an `events.py` file that defines the following variables:
+
+```
+from events import event_dict, initial_events, events_module_update_blackboard, on_shutdown, make_validator
+```
+
+(note that events.py can be symlinked, and import each other or refactored for reuse)
+
+* **event_dict**
+
+This is a mapping `str -> Class` for the blackboard
+
+* **initial_events**
+
+list[[event primitives]], initial boundary conditions to dispatch
+
+* **events_module_update_blackboard**
+
+populate the blackboard with assets, ROS adapters, etc.
+
+* **on_shutdown**
+
+intended to be a graceful handler, but ROS shutdown is blunt
+
+* **make_validator**
+
+return a class that checks requests, stub to add extra logic
 
 ---
 
-```
-bloom-release --new-track --rosdistro jazzy --track jazzy ros2_eventdispatch
-```
+# stage.launch
 
-for 'amending' a tag:
-```
-git tag 0.2.25 2c4bf0ca5263accd5a661051994e0913de361621 -f
-git push origin refs/tags/0.2.25 --force
-```
+Convienence launch file, exposing the 2 most important launch args to `ed_node`
 
----
+1. node_name
+2. events_module_path
 
-# update
+The idea is to stand up various `ed_node` instances via `stage.launch` as needed.
 
-repeat until functionally tested:
-1. update source
-2. colcon ws build, test, func validate
-
-bloom-release --rosdistro jazzy ros2_eventdispatch
-
-test it 
-
-https://docs.ros.org/en/jazzy/How-To-Guides/Releasing/First-Time-Release.html#next-steps
-https://docs.ros.org/en/jazzy/Installation/Testing.html
-
----
-
-Wait, eventually it will be sync'd from experimental to the official release:
-
-https://discourse.openrobotics.org/t/new-packages-for-jazzy-jalisco-2026-01-28/52166
-
-
----
-
-# 2026-04, update to 0.2.28
-
-(base) ubuntu@ubuntu24dev:/home/charlieyan1/Dev/jim/ed/ros2_eventdispatch$ catkin_prepare_release
-...
-   abe0853..b9d229e  main -> main
-Total 0 (delta 0), reused 0 (delta 0), pack-reused 0
-To github.com:cyan-at/ros2_eventdispatch.git
- * [new tag]         0.2.28 -> 0.2.28
-The source repository has been released successfully. The next step will be 'bloom-release'.
-
-
-bloom-release --rosdistro jazzy ros2_eventdispatch
+Since `ed` is such a compact framework, it may be more likely to expand capability by growing the `Event` subclasses in a blackboard than spawning more instances, but is an option anyways.
