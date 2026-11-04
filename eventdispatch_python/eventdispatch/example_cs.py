@@ -6,17 +6,27 @@ Created on 2025-08-02
 
 Copyright (c) 2025, Charlie Yan
 License: Apache-2.0 (see LICENSE for details)
+
+Example cs: the composite-semaphore mechanism on a CSBQCVED.
+CSWait / CSRelease create on-the-fly associations between Events:
+type a command of the form ####aaa or aaa##### (# = digits,
+a = letters) -- if digits come first, that signal combination
+prints the letters; if letters come first, printing the letters
+produces those signals.
+
+Run:  eventdispatch_example_cs
+      (or: python -m eventdispatch.example_cs)
 '''
 
 from .core import *
 from .common1 import *
 from .composite_semaphore import *
-from .example1 import *
+from .example_core import *
 
 # from core import *
 # from common1 import *
 # from composite_semaphore import *
-# from example1 import KeyboardThread
+# from example_core import KeyboardThread
 
 import signal, time, os, sys, random, threading, argparse
 
@@ -197,7 +207,7 @@ class QuietCSRelease(CSRelease):
         pass
 
 def main():
-    parser = argparse.ArgumentParser(description='eventdispatch example2')
+    parser = argparse.ArgumentParser(description='eventdispatch example_cs')
     parser.add_argument('--verbose',
         help="verbose, default=True",
         action='store_true')
