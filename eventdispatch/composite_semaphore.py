@@ -9,26 +9,19 @@ from .common1 import *
 # from core import *
 # from common1 import *
 
-'''
-a thread-safe data structure
-
-on the left ('releasing/left')
-    a set that you 'tick' down
-    but resetting it takes O(1) complexity
-
-    the set is also dynamic:
-        when the set is completely full
-        you can change its values / keys
-
-        once it is partially tick'd
-        this is forbidden
-
-on the right ('acquiring/right')
-    a dynamics set of callbacks to fire
-    it is free-form here
-    per free-form thing, release underlying(s) semaphore
-'''
 class CompositeSemaphore(object):
+    '''
+    a thread-safe semaphore with named lefts and many rights
+
+    left: a dynamic set of keys. release(k) ticks one key down;
+    when every key has been ticked in the current round, all
+    waiting rights are released and the round resets (O(1)).
+    Keys can be added / cleared between rounds, not mid-round.
+
+    right: any number of acquirers, each with its own semaphore;
+    before releasing it, the releaser writes the outcome into
+    the acquirer's mutable_shared (the status).
+    '''
     # not really colloidal
     def __init__(self, initial_keys):
         self.left_lock = threading.Lock()
@@ -56,6 +49,7 @@ class CompositeSemaphore(object):
         }
 
     def add_left(self, k):
+        '''add a key to the left set (between rounds)'''
         with self.semaphore_lock:
             if not self.mutable_hb["hb"]:
                 # print("cs killed")
@@ -67,6 +61,7 @@ class CompositeSemaphore(object):
                 self.key_count += 1
 
     def clear_left(self, k):
+        '''remove a key from the left set (between rounds)'''
         with self.semaphore_lock:
             if not self.mutable_hb["hb"]:
                 # print("cs killed")
@@ -77,6 +72,7 @@ class CompositeSemaphore(object):
 
     def wraparound_idempotent_increment(
         self, k, identifier=None):
+        '''advance k's counter to this round's tick; False if already ticked'''
         if self.tick > self.counters[k][0]:
             self.counters[k][0] += 1
             self.counters[k][1] = identifier
@@ -94,6 +90,11 @@ class CompositeSemaphore(object):
             return False
 
     def release(self, k, identifier=None):
+        '''
+        tick key k down (once per round). When the last key
+        ticks, write the status into every right's mutable_shared,
+        release them all, and reset the round.
+        '''
         go = True
         with self.mutable_hb["hb_lock"]:
             if not self.mutable_hb["hb"]:
@@ -137,6 +138,11 @@ class CompositeSemaphore(object):
             #     print("not found", k)
 
     def acquire(self, identifier, mutable_shared):
+        '''
+        register (identifier, mutable_shared) and block until a
+        full round of lefts releases it.
+        An identifier may acquire only once at a time.
+        '''
         # decorator?
         go = True
         with self.mutable_hb["hb_lock"]:
@@ -225,6 +231,7 @@ def consume_target(sem, x, delay, c, e):
 
 
 class Collector(object):
+    '''shared bookkeeping for main()'s producer / consumer demo'''
     def __init__(self, l):
         self.heartbeat = True
 
@@ -239,6 +246,15 @@ class Collector(object):
 #######################################
 
 class CSWait(CommonEvent):
+    '''
+    wait for a set of left tokens before a pending event may run:
+    dispatch finds / creates the CompositeSemaphore for its lefts
+    and blocks its own thread acquiring it; finish then enqueues
+    the pending event (it never dispatches it directly).
+
+    args: [lefts csv, requester name, <pending event serialization>]
+    lefts must not overlap another live CSWait's.
+    '''
     debug_color = bcolors.BLUE
 
     def prior_cb(self, args):
@@ -263,7 +279,8 @@ class CSWait(CommonEvent):
     @staticmethod
     def parse_lefts(s):
         '''
-        identifier is just a serialization of tokens, not a new thing
+        "b,a,b" -> (["a", "b"], "a,b"): deduped, sorted.
+        The identifier is just the joined serialization, not a new thing.
         '''
         tokens = sorted(list(set(s.split(","))))
 
@@ -361,6 +378,7 @@ class CSWait(CommonEvent):
         )
 
     def cleanup(self):
+        '''remove this wait's semaphore + identifier from the registry'''
         self.internal_log("cleaning up {}".format(self.ls))
         with self.blackboard["volatile"]["cs_registry_l"] and self.blackboard["volatile"]["cs_cv_l"]:
             for l in self.ls:
@@ -386,6 +404,7 @@ class CSWait(CommonEvent):
             )
 
     def finish(self, event_dispatch, *args, **kwargs):
+        '''cleanup, then enqueue the pending event (status -1: noop)'''
         # if self.exception:
         #     self.internal_log("noop")
         #     return
@@ -415,6 +434,9 @@ class CSWait(CommonEvent):
 
 class CSRelease(CommonEvent):
     '''
+    release some tokens, possibly unblocking CSWaits.
+    The release happens entirely in dispatch; finish is a noop.
+
     example:
     ["CSRelease", "0,1,2", 0, 0]
     the last 2 indices don't really matter
@@ -459,6 +481,7 @@ class CSRelease(CommonEvent):
         self.internal_log("CSRelease dispatch done!")
 
     def finish(self, event_dispatch, *args, **kwargs):
+        '''noop: CSRelease is a signal, not a process'''
         pass
 
 #######################################
@@ -470,6 +493,7 @@ class CSBQCVED(BlackboardQueueCVED):
     of its peers
     '''
     def register_blackboard_assets(self, blackboard, name):
+        '''the queue assets, plus the volatile cs registry / set / cv'''
         super(CSBQCVED, self).register_blackboard_assets(
             blackboard, name)
 
@@ -487,38 +511,44 @@ class CSBQCVED(BlackboardQueueCVED):
         blackboard["volatile"]["cs_cv"] = threading.Condition(
             blackboard["volatile"]["cs_cv_l"])
 
-    def prior_cb(self, blackboard):
-        '''
-        avoid overriding this
-        '''
-        self.internal_log("CSBQCVED: prior_cb")
+    def _dispatch_cs_waits(self, blackboard):
+        '''partition the queue and dispatch this batch's CSWaits
 
+        The CS partition, shared by the blocking prior_cb below
+        and by subclasses that gate instead of blocking
+        (SimClockCSBQCVED): a CSWait whose identifier is already
+        registered, or whose lefts do not overlap a live
+        semaphore, is dispatched -- always on the threaded
+        vehicle (BlackboardQueueCVED.do_dispatch), never a
+        subclass's do_dispatch override. A CSWait whose lefts
+        overlap a live semaphore is rejected. The rest of the
+        queue is left in place.
+
+        Returns (cs_instances, accepted_ids, expected_ids):
+        expected includes rejected waits' identifiers (the
+        blocking prior_cb waits on it); accepted excludes them.
+        '''
         cs_instances = []
+        accepted_ids = set()
         expected_cs_ids = set()
         non_cs_instances = []
         for instance in blackboard[self.queue_name]:
             if instance[0] in ["CSWait"]: # CSRelease, we only demand open-the-mouth on CSWait, CSRelease we don't care
-                # ids = CSWait.parse_lefts(instance[1])
-                # identifier = instance[2]
-
                 ids, identifier = CSWait.parse_lefts(instance[1])
-
-                self.internal_log("instance[1] {}, identifier: {}".format(instance[1], identifier))
 
                 # reject overlap at the dispatch level
                 # instead of in event
                 with blackboard["volatile"]["cs_registry_l"] and blackboard["volatile"]["cs_cv_l"]:
-                    if identifier in self.blackboard["volatile"]["cs_set"]:
+                    if identifier in blackboard["volatile"]["cs_set"]:
                         cs_instances.append(instance)
+                        accepted_ids.add(identifier)
                     elif len(set.intersection(
                         set(blackboard["volatile"]["cs_registry"].keys()),
-                        # ids)) == 0:
                         ids)) > 0:
                         self.internal_log("left overlap caught, rejecting CSWait attempt")
                     else:
                         cs_instances.append(instance)
-
-                # expected_cs_ids.update(ids)
+                        accepted_ids.add(identifier)
 
                 # we use the 'identifier' in cs_set because
                 # for now, CSWaits must be non-overlapping
@@ -528,24 +558,35 @@ class CSBQCVED(BlackboardQueueCVED):
             else:
                 non_cs_instances.append(instance)
 
-        self.internal_log("CS_INSTANCES {}!!!!!".format(cs_instances))
-        self.internal_log("non_cs_instances {}!!!!!".format(non_cs_instances))
-
         blackboard[self.queue_name] = non_cs_instances
+
+        for cs_instance in cs_instances:
+            BlackboardQueueCVED.do_dispatch(self, blackboard, cs_instance)
+
+        return cs_instances, accepted_ids, expected_cs_ids
+
+    def prior_cb(self, blackboard):
+        '''
+        avoid overriding this
+
+        partition the queue: CSWaits dispatch first (CSWaits
+        whose lefts overlap a live semaphore are rejected), and
+        the rest of the queue waits until every expected CSWait
+        has registered its semaphore.
+        '''
+        self.internal_log("CSBQCVED: prior_cb")
+
+        cs_instances, _, expected_cs_ids = self._dispatch_cs_waits(blackboard)
 
         if len(cs_instances) == 0:
             # self.internal_log("prior_cb DONE!!!!")
             return
-
-        for cs_instance in cs_instances:
-            self.do_dispatch(blackboard, cs_instance)
 
         self.internal_log("expected_cs_ids {}!!!!!".format(expected_cs_ids))
         if len(expected_cs_ids) > 0:
             self.blackboard["volatile"]["cs_cv_l"].acquire()
             while len(set.intersection(
                 self.blackboard["volatile"]["cs_set"],
-                # ids)) == 0:
                 expected_cs_ids)) < len(expected_cs_ids):
                 self.blackboard["volatile"]["cs_cv"].wait()
             self.blackboard["volatile"]["cs_cv_l"].release()
@@ -560,6 +601,7 @@ class CSBQCVED(BlackboardQueueCVED):
 
     # convienence function
     def clear_cs_waits(self, blackboard, key=None):
+        '''force-release waiting CSWaits (status -1: aborted); all, or one key'''
         if "volatile" not in blackboard:
             self.internal_log("blackboard missing volatile, noop")
             return
@@ -581,6 +623,7 @@ class CSBQCVED(BlackboardQueueCVED):
                     s[1].release()
 
 def main():
+    '''standalone produce / consume demo of CompositeSemaphore'''
     s = 4
 
     sem1 = CompositeSemaphore([x for x in range(s)])
