@@ -1,3 +1,29 @@
+## ros2_eventdispatch (rolling) - 0.2.31-1
+
+The packages in the `ros2_eventdispatch` repository were released into the `rolling` distro by running `/home/hatch/workspace/release-venv/bin/bloom-release -r rolling -y --no-pull-request ros2_eventdispatch` on `Thu, 05 Nov 2026 22:47:59 -0000`
+
+These packages were released:
+- `eventdispatch_python`
+- `eventdispatch_ros2`
+- `eventdispatch_ros2_interfaces`
+
+Version of package(s) in repository `ros2_eventdispatch`:
+
+- upstream repository: https://github.com/cyan-at/ros2_eventdispatch.git
+- release repository: https://github.com/ros2-gbp/ros2_eventdispatch-release.git
+- rosdistro version: `0.2.30-1`
+- old version: `0.2.30-1`
+- new version: `0.2.31-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.4`
+- catkin_pkg version: `1.1.1`
+- rosdep version: `0.27.0`
+- rosdistro version: `1.1.0`
+- vcstools version: `0.1.42`
+
+
 ## ros2_eventdispatch (kilted) - 0.2.31-1
 
 The packages in the `ros2_eventdispatch` repository were released into the `kilted` distro by running `/home/hatch/workspace/release-venv/bin/bloom-release -r kilted -y --no-pull-request ros2_eventdispatch` on `Thu, 05 Nov 2026 22:46:34 -0000`
