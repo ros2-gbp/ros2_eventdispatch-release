@@ -181,6 +181,7 @@ class TrainingDispatch(SimClockCSBQCVED):
         super(TrainingDispatch, self).__init__(blackboard, name)
         if COMPLETIONS_KEY not in blackboard:
             blackboard[COMPLETIONS_KEY] = CompletionLog()
+        self._last_finished = None
 
     def dispatch_finish(self, event, *args, **kwargs):
         """The library's completion step, plus clock settling:
@@ -202,6 +203,42 @@ class TrainingDispatch(SimClockCSBQCVED):
                 bb = event.blackboard
                 if bb is not None and "sim" in bb:
                     bb["sim"].t = settled
+        self._last_finished = self._finished_note(event)
+
+    def _finished_note(self, event):
+        """'Name OUTCOME' for the event that just finished, for
+        post_cb's annotation. The outcome is read back from the
+        record finish() just appended, matched on event_id;
+        an outcome carrying no name, or a record the harness
+        already drained, degrades to the class name alone."""
+        name = type(event).__name__
+        try:
+            records = self.blackboard[COMPLETIONS_KEY].snapshot()
+        except Exception:
+            return name
+        for record in reversed(records):
+            if record.get("event_id") != event.get_id():
+                continue
+            outcome = record.get("outcome")
+            if isinstance(outcome, dict):
+                outcome = outcome.get("outcome")
+            if isinstance(outcome, str) and outcome:
+                return "{} {}".format(name, outcome)
+            return name
+        return name
+
+    def post_cb(self, blackboard):
+        """The base cycle marker, annotated with the event whose
+        finish woke this cycle. advance_one fires one completion
+        per cycle, after post_cb, so the annotation lags the
+        finish by exactly one cycle; a cycle no finish preceded
+        prints the plain marker."""
+        note = getattr(self, "_last_finished", None)
+        if note is None:
+            super(TrainingDispatch, self).post_cb(blackboard)
+            return
+        self._last_finished = None
+        self.internal_log("POST_CB! (finished: {})".format(note))
 
     @property
     def completions(self) -> CompletionLog:
