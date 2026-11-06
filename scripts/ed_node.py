@@ -259,6 +259,7 @@ def main(args=None):
 
     blackboard["ros_ed_thread"] = Thread(
     target=node.run,
+    daemon=True,  # teardown must never hang on this thread
     args=(blackboard,
         "node",
 
@@ -290,18 +291,47 @@ def main(args=None):
     except rclpy.executors.ExternalShutdownException:
         pass
     finally:
+        # Teardown must complete inside launch's SIGINT
+        # grace (~5 s). The phase nodes forked from this
+        # file lost their shutdown dump to exactly this
+        # shape (2026-11-06): a KeyboardInterrupt landing
+        # inside the unguarded block aborted it before
+        # on_shutdown, and the process then hung on the
+        # non-daemon dispatch thread until SIGTERM. Hence:
+        # ignore further SIGINTs from here on, run
+        # on_shutdown FIRST (the staged module's teardown
+        # work is the point of the block), guard every
+        # step so one failure cannot skip the rest, and
+        # bound the join.
+        import signal as _signal
+        try:
+            _signal.signal(_signal.SIGINT, _signal.SIG_IGN)
+        except BaseException:
+            pass
+
+        for _attempt in range(2):
+            try:
+                on_shutdown(blackboard, node)
+                break
+            except KeyboardInterrupt:
+                continue  # one retry; signals now ignored
+            except Exception as e:
+                print(f"on_shutdown failed: {e}")
+                break
+
         print("notifying all CSWaits {}".format(blackboard["volatile"]["cs_registry"]))
 
-        node.clear_cs_waits(blackboard)
+        try:
+            node.clear_cs_waits(blackboard)
+        except BaseException as e:
+            print(f"clear_cs_waits failed: {e}")
 
         print("killing ros_ed_thread")
         blackboard[node.hb_key] = False
         with blackboard[node.mutex_name]:
             blackboard[node.cv_name].notify_all()
 
-        on_shutdown(blackboard, node)
-
-        blackboard["ros_ed_thread"].join()
+        blackboard["ros_ed_thread"].join(timeout=2)
 
         rclpy.try_shutdown()
         node.destroy_node()
