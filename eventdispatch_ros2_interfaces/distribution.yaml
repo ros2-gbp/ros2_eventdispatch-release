@@ -1,0 +1,6 @@
+eventdispatch_ros2_interfaces:
+  source:
+    type: git
+    url: https://github.com/cyan-at/eventdispatch_ros2_interfaces.git
+    version: main
+  status: developed
