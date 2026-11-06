@@ -1,0 +1,12 @@
+Source: ros-rolling-eventdispatch-ros2
+Section: misc
+Priority: optional
+Maintainer: "Charlie Yan" <cyanatg@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-rolling-ament-cmake, ros-rolling-ament-cmake-python, ros-rolling-ament-lint-auto <!nocheck>, ros-rolling-ament-lint-common <!nocheck>, ros-rolling-eventdispatch-python, ros-rolling-eventdispatch-ros2-interfaces, ros-rolling-rclcpp, ros-rolling-rclpy, ros-rolling-ros-workspace
+Homepage: https://index.ros.org/p/eventdispatch_ros2/#rolling
+Standards-Version: 3.9.2
+
+Package: ros-rolling-eventdispatch-ros2
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-rclcpp, ros-rolling-rclpy, ros-rolling-ros-workspace
+Description: ROS2 wrapper for python-eventdispatch
