@@ -156,6 +156,48 @@ class CommonEvent(Event):
 
         return (ed.reserve_event_id(), blackboard), tuple(tokens)
 
+class ClockedEvent(CommonEvent):
+    '''
+    a CommonEvent that reads its dispatch's clock.
+
+    The shared base of SimEvent (eventdispatch.sim) and
+    RecordingEvent (eventdispatch.learning): the time stamps and
+    clock helpers both need, independent of how time passes.
+
+    The running dispatch provides the clock as its `now`
+    attribute: simulated time on SimClockCSBQCVED, monotonic
+    wall time on WallClockRecordingDispatch. The dispatch stamps
+    started_at when the event starts; quoted_duration is stamped
+    only by a dispatch that schedules on quotes (the sim clock).
+    '''
+    def __init__(self, event_id, *args, **kwargs):
+        super(ClockedEvent, self).__init__(event_id, *args, **kwargs)
+        # stamped by the running dispatch
+        self.started_at = None
+        self.quoted_duration = None
+
+    def now(self):
+        '''current time on the running dispatch's clock'''
+        if self.event_dispatch is None:
+            raise RuntimeError(
+                "{}.now(): event has not been dispatched".format(
+                    type(self).__name__))
+        return self.event_dispatch.now
+
+    def elapsed(self):
+        '''time since this event started, or None before it starts'''
+        if self.started_at is None:
+            return None
+        return self.now() - self.started_at
+
+    def progress(self):
+        '''elapsed fraction of the quoted duration, in [0, 1] at
+        completion; None when the duration is 0 or unset (always
+        None on a wall clock, which takes no quote)'''
+        if not self.quoted_duration:
+            return None
+        return self.elapsed() / self.quoted_duration
+
 TIMERWAIT_TIMEOUT = -1
 TIMERWAIT_BAILED = 1
 
