@@ -59,11 +59,14 @@ runs that event in-sim like any other. Every other event
 lives within the sim: quoted, heaped, and finished in
 duration order.
 
-SimEvent is the Event base class for this dispatch: dispatch()
-quotes a duration, finish() is the completion step. The base
-stamps started_at / quoted_duration at dispatch and exposes the
-dispatch clock through the now() member function, so the same
-event interface is implemented against every simulator.
+SimEvent is the plain Event base class for this dispatch:
+dispatch() quotes a duration, finish() is the completion step.
+The dispatch stamps started_at / quoted_duration on any event it
+quotes, and ClockedEvent (eventdispatch.common1) exposes the
+clock through now(), so the same event interface is implemented
+against every simulator. Any event that quotes a duration runs
+here -- a SimEvent, or a RecordingEvent (eventdispatch.learning)
+on SimClockRecordingDispatch.
 Engine adapters subclass SimClockCSBQCVED and override
 step_world() only.
 """
@@ -72,12 +75,12 @@ from __future__ import annotations
 import heapq
 import itertools
 
-from eventdispatch.common1 import CommonEvent, bcolors, wrap_with_prints
+from eventdispatch.common1 import ClockedEvent, bcolors, wrap_with_prints
 from eventdispatch.composite_semaphore import CSBQCVED, CSRelease, CSWait
 from eventdispatch.core import wrap_instance_method
 
 
-class SimEvent(CommonEvent):
+class SimEvent(ClockedEvent):
     """Event base class for simulated-clock systems.
 
     Sim-time protocol (subclasses override both):
@@ -91,33 +94,12 @@ class SimEvent(CommonEvent):
 
     A cancelled event never reaches finish(): it never mutates
     state.
+
+    The clock stamps (started_at / quoted_duration) and helpers
+    (now / elapsed / progress) come from ClockedEvent
+    (eventdispatch.common1), shared with RecordingEvent
+    (eventdispatch.learning).
     """
-
-    def __init__(self, event_id, *args, **kwargs):
-        super(SimEvent, self).__init__(event_id, *args, **kwargs)
-        # stamped by SimClockCSBQCVED.do_dispatch at quote time
-        self.started_at = None
-        self.quoted_duration = None
-
-    def now(self):
-        """Current simulated time, read from the running dispatch."""
-        if self.event_dispatch is None:
-            raise RuntimeError(
-                "SimEvent.now(): event has not been dispatched")
-        return self.event_dispatch.now
-
-    def elapsed(self):
-        """Simulated time since this event was dispatched."""
-        if self.started_at is None:
-            return None
-        return self.now() - self.started_at
-
-    def progress(self):
-        """Elapsed fraction of the quoted duration, in [0, 1] at
-        completion; None when the duration is 0 or unset."""
-        if not self.quoted_duration:
-            return None
-        return self.elapsed() / self.quoted_duration
 
     def dispatch(self, ed, *args, **kwargs):
         raise NotImplementedError(
