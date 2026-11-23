@@ -1,0 +1,12 @@
+Source: ros-humble-eventdispatch-ros2
+Section: misc
+Priority: optional
+Maintainer: "Charlie Yan" <cyanatg@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-humble-ament-cmake, ros-humble-ament-cmake-python, ros-humble-ament-lint-auto <!nocheck>, ros-humble-ament-lint-common <!nocheck>, ros-humble-eventdispatch-python, ros-humble-eventdispatch-ros2-interfaces, ros-humble-rclcpp, ros-humble-rclpy, ros-humble-ros-workspace
+Homepage: https://index.ros.org/p/eventdispatch_ros2/#humble
+Standards-Version: 3.9.2
+
+Package: ros-humble-eventdispatch-ros2
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-humble-rclcpp, ros-humble-rclpy, ros-humble-ros-workspace
+Description: ROS2 wrapper for python-eventdispatch
