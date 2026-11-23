@@ -1,0 +1,42 @@
+ros-humble-eventdispatch-python (0.3.0-1jammy) jammy; urgency=high
+
+  * Breaking: the learning surface is rebuilt on recording
+  * RecordingEvent replaces TrainingEvent; a sibling of SimEvent (both ClockedEvent)
+  * SimClockRecordingDispatch replaces TrainingDispatch; settling raises when step_world() drives an engine
+  * New WallClockRecordingDispatch: recording events run run_outcome() on their own thread, in real time
+  * Recordings field (key "recordings", RecordingLog) replaces the completions field; PREEMPTED records, on_preempt hook
+  * Removed TrainingEvent, TrainingDispatch, LearningEvent, LearningDispatch, CompletionLog, COMPLETIONS_KEY
+  * example_learning rewritten for both clocks; test/test_recording.py added
+  * Contributors: Charlie Yan
+
+ -- "Charlie Yan" <cyanatg@gmail.com>  Mon, 23 Nov 2026 08:00:00 -0000
+
+ros-humble-eventdispatch-python (0.2.28-1jammy) jammy; urgency=high
+
+  * Event baseclass daemon=True
+  * Contributors: Charlie Yan
+
+ -- "Charlie Yan" <cyanatg@gmail.com>  Fri, 03 Apr 2026 07:00:00 -0000
+
+ros-humble-eventdispatch-python (0.2.26-1jammy) jammy; urgency=high
+
+  * ROSEvents msg / srv
+  * Contributors: Charlie Yan
+
+ -- "Charlie Yan" <cyanatg@gmail.com>  Sun, 14 Dec 2025 08:00:00 -0000
+
+ros-humble-eventdispatch-python (0.2.25-1jammy) jammy; urgency=high
+
+  * bugfix
+  * Contributors: Charlie Yan
+
+ -- "Charlie Yan" <cyanatg@gmail.com>  Mon, 08 Dec 2025 08:00:00 -0000
+
+ros-humble-eventdispatch-python (0.2.24-1jammy) jammy; urgency=high
+
+  * initial commit
+  * Contributors: Charlie Yan
+
+ -- "Charlie Yan" <cyanatg@gmail.com>  Sat, 06 Dec 2025 08:00:00 -0000
+
+
